@@ -1,6 +1,7 @@
 package com.example.dellayush.sendliveposition;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
@@ -9,6 +10,7 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -55,18 +57,17 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         lati = findViewById(R.id.lat);
         longi = findViewById(R.id.lon);
         addr = findViewById(R.id.add);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        createLocationRequest();
-        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
-                .addLocationRequest(locationRequest);
-        SettingsClient client = LocationServices.getSettingsClient(this);
-        Task<LocationSettingsResponse> task = client.checkLocationSettings(builder.build());
+//        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
+//                .addLocationRequest(locationRequest);
+//        SettingsClient client = LocationServices.getSettingsClient(this);
+//        Task<LocationSettingsResponse> task = client.checkLocationSettings(builder.build());
+
 //        task.addOnSuccessListener(this, new OnSuccessListener<LocationSettingsResponse>() {
 //            @Override
 //            public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
@@ -95,29 +96,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 //            }
 //        });
 
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                if (locationResult == null) {
-                    return;
-                }
-                for (Location location : locationResult.getLocations()) {
-                    // Update UI with location data
-                    // ...
-                    Toast.makeText(getApplicationContext()," Update Check!!!",Toast.LENGTH_SHORT).show();
-                    mCurrentLocation = location;
-                    changeInLocationCounter++;
-                    double latitude = mCurrentLocation.getLatitude();
-                    double longitude = mCurrentLocation.getLongitude();
-                    lati.setText(" Latitude is: " + latitude + "" + " for the " + changeInLocationCounter + " time");
-                    longi.setText(" Longitude is: " + longitude + "" + " for the " + changeInLocationCounter + " time");
-                    String x = getAddress(latitude,longitude);
-                    addr.setText(x);
-                }
-            }
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
+        createLocationRequest();
 
-            ;
-        };
+
 //        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 //        locationListener = new LocationListener() {
 //            @Override
@@ -178,79 +160,69 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     private void startLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
             return;
         }
-        fusedLocationProviderClient.requestLocationUpdates(locationRequest,
-                locationCallback,
-                Looper.getMainLooper());
+        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
     }
 
-    public Location getLocation() {
-        Location location = null;
-        try {
-            LocationManager locationManager = (LocationManager) this.getSystemService(LOCATION_SERVICE);
-
-            // getting GPS status
-            boolean isGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-
-            // getting network status
-            boolean isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-
-            Log.d("Boolean Values", isGPSEnabled+" "+isNetworkEnabled);
-
-            if (!isGPSEnabled && !isNetworkEnabled) {
-                add = "Location or Network Services is disabled ,please enable it and try again";
-            } else {
-
-                if (isNetworkEnabled) {
-                    Toast.makeText(getApplicationContext(),"Network",Toast.LENGTH_SHORT).show();
-                    if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        Toast.makeText(getApplicationContext(),"Permission",Toast.LENGTH_SHORT).show();
-                        return null;
-                    }
-                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 100, locationListener);
-                    Toast.makeText(getApplicationContext(),locationManager+"",Toast.LENGTH_SHORT).show();
-                    Log.d("Network", "Network Enabled");
-                    if (locationManager != null) {
-                        location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                        if (location != null) {
-                            double latitude = location.getLatitude();
-                            double longitude = location.getLongitude();
-                        }
-                    }
-                }
-
-//                 if GPS Enabled get lat/long using GPS Services
-                if (isGPSEnabled) {
-                    Toast.makeText(getApplicationContext(),"GPS",Toast.LENGTH_SHORT).show();
-                    if (location == null) {
-                        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 100, locationListener);
-                        Log.d("GPS", "GPS Enabled");
-                        if (locationManager != null) {
-                            location = locationManager
-                                    .getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                            if (location != null) {
-                                double latitude = location.getLatitude();
-                                double longitude = location.getLongitude();
-                            }
-                        }
-                    }
-                }
-
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return location;
-    }
+//    public Location getLocation() {
+//        Location location = null;
+//        try {
+//            LocationManager locationManager = (LocationManager) this.getSystemService(LOCATION_SERVICE);
+//
+//            // getting GPS status
+//            boolean isGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+//
+//            // getting network status
+//            boolean isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+//
+//            Log.d("Boolean Values", isGPSEnabled+" "+isNetworkEnabled);
+//
+//            if (!isGPSEnabled && !isNetworkEnabled) {
+//                add = "Location or Network Services is disabled ,please enable it and try again";
+//            } else {
+//
+//                if (isNetworkEnabled) {
+//                    Toast.makeText(getApplicationContext(),"Network",Toast.LENGTH_SHORT).show();
+//                    if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//                        Toast.makeText(getApplicationContext(),"Permission",Toast.LENGTH_SHORT).show();
+//                        return null;
+//                    }
+//                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 100, locationListener);
+//                    Toast.makeText(getApplicationContext(),locationManager+"",Toast.LENGTH_SHORT).show();
+//                    Log.d("Network", "Network Enabled");
+//                    if (locationManager != null) {
+//                        location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+//                        if (location != null) {
+//                            double latitude = location.getLatitude();
+//                            double longitude = location.getLongitude();
+//                        }
+//                    }
+//                }
+//
+////                 if GPS Enabled get lat/long using GPS Services
+//                if (isGPSEnabled) {
+//                    Toast.makeText(getApplicationContext(),"GPS",Toast.LENGTH_SHORT).show();
+//                    if (location == null) {
+//                        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 100, locationListener);
+//                        Log.d("GPS", "GPS Enabled");
+//                        if (locationManager != null) {
+//                            location = locationManager
+//                                    .getLastKnownLocation(LocationManager.GPS_PROVIDER);
+//                            if (location != null) {
+//                                double latitude = location.getLatitude();
+//                                double longitude = location.getLongitude();
+//                            }
+//                        }
+//                    }
+//                }
+//
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//        return location;
+//    }
 
     public String getAddress(double lat, double lng) {
         Geocoder geocoder = new Geocoder(this, Locale.getDefault());
@@ -297,3 +269,40 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 //        Toast.makeText(this, "Provider Disabled", Toast.LENGTH_SHORT).show();
     }
 }
+
+class LiveLocation extends AsyncTask<Void,Void,Void> {
+
+    //Progressdialog to show while sending email
+    private ProgressDialog progressDialog;
+    private Context context;
+
+    //Class Constructor
+    public LiveLocation(Context context) {
+        //Initializing variables
+        this.context = context;
+    }
+
+    @Override
+    protected void onPreExecute() {
+        super.onPreExecute();
+        //Showing progress dialog while sending email
+        progressDialog = ProgressDialog.show(context, "Sending message", "Please wait...", false, false);
+    }
+
+    @Override
+    protected void onPostExecute(Void aVoid) {
+        super.onPostExecute(aVoid);
+        //Dismissing the progress dialog
+        progressDialog.dismiss();
+        //Showing a success message
+        Toast.makeText(context, "Message Sent", Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    protected Void doInBackground(Void... params) {
+        
+        return null;
+    }
+
+}
+
