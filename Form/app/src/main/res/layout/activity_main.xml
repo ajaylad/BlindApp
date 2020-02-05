@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity"
+    android:orientation="vertical"
+    android:gravity="center">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:layout_gravity="center">
+
+        <EditText
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Name"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:layout_marginBottom="8dp"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Number" />
+
+        <EditText
+            android:layout_marginBottom="8dp"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Email" />
+
+        <EditText
+            android:layout_marginBottom="8dp"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Street" />
+
+        <EditText
+            android:layout_marginBottom="8dp"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Landmark" />
+
+        <EditText
+            android:layout_marginBottom="8dp"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Mom's name" />
+
+        <EditText
+            android:layout_marginBottom="8dp"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Father name" />
+
+    </LinearLayout>
+
+
+
+
+
+</ScrollView>
