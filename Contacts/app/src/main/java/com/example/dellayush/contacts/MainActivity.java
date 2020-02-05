@@ -11,12 +11,12 @@ import android.os.Handler;
 import android.provider.ContactsContract;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.TextView;
 import android.widget.Toast;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -34,31 +34,56 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     String contactNumber="", name="", contactName="", exactFinalContactName="";
     HashMap<String, String> contactsWithTheName;
     Intent callIntent;
-    TextView tv;
 
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        tv=findViewById(R.id.textview);
-        Intent checkTTSIntent = new Intent();
-        checkTTSIntent.setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
-        startActivityForResult(checkTTSIntent, TTS_INSTALL_CODE);
+        speaker = new TextToSpeech(this,this);
+        speaker.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override
+            public void onStart(String utteranceId) {
+            }
+
+            @Override
+            public void onError(String utteranceId) {
+            }
+
+            @Override
+            public void onDone(String utteranceId) {
+                switch (utteranceId){
+                    case "401":
+                        displaySpeechRecognizer(1);
+                        break;
+                    case "402":
+                        speakContacts(contactsWithTheName);
+                        break;
+                    case "403":
+                        displaySpeechRecognizer(100);
+                        break;
+                    case "404":
+                        displaySpeechRecognizer(2);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        });
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
             speaker.setLanguage(Locale.UK);
-            speaker.setSpeechRate((float)0.8);
-            speaker.speak("Say call and a person name or their contact to connect to a person.",TextToSpeech.QUEUE_ADD,null);
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    displaySpeechRecognizer(1);
-                }
-            },5000);
+            speaker.speak(" Say call and a person name to connect to the person. ",TextToSpeech.QUEUE_FLUSH,null,"401");
+//            new Handler().postDelayed(new Runnable() {
+//                @Override
+//                public void run() {
+//                    displaySpeechRecognizer(1);
+//                }
+//            },5000);
             //displaySpeechRecognizer(1);
             contactsWithTheName = new HashMap<>();
         } else if (status == TextToSpeech.ERROR) {
@@ -66,6 +91,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         }
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -94,13 +120,13 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                 if (!contactName.equalsIgnoreCase("")) {
                     call();
                 } else {
-                    speaker.speak(" Try calling with the name ",TextToSpeech.QUEUE_ADD,null);
-                    new Handler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            displaySpeechRecognizer(1);
-                        }
-                    },4000);
+                    speaker.speak(" Try calling with the correct name ",TextToSpeech.QUEUE_ADD,null, "401");
+//                    new Handler().postDelayed(new Runnable() {
+//                        @Override
+//                        public void run() {
+//                            displaySpeechRecognizer(1);
+//                        }
+//                    },4000);
                 }
             }
 //            else if((choiceOfContact.length==1)&&(choiceOfContact[0].equalsIgnoreCase("call"))){
@@ -114,22 +140,22 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
             String spokenText = results.get(0);
             exactFinalContactName = toFirstLetterCapital(spokenText);
             if(contactsWithTheName.containsKey(exactFinalContactName)){
-                speaker.speak(" Are you sure, you want to call " + exactFinalContactName + " ?",TextToSpeech.QUEUE_ADD,null);
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        displaySpeechRecognizer(100);
-                    }
-                },4000);
+                speaker.speak(" Are you sure, you want to call " + exactFinalContactName + " ? ",TextToSpeech.QUEUE_ADD,null,"403");
+//                new Handler().postDelayed(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        displaySpeechRecognizer(100);
+//                    }
+//                },4000);
             }else{
                 speaker.speak(" Sorry, but that wasn't " + contactName + " !",TextToSpeech.QUEUE_ADD,null);
-                speaker.speak(" Try again ! ",TextToSpeech.QUEUE_ADD,null);
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        speakContacts(contactsWithTheName);
-                    }
-                },5000);
+                speaker.speak(" Try again ! ",TextToSpeech.QUEUE_ADD,null,"402");
+//                new Handler().postDelayed(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        speakContacts(contactsWithTheName);
+//                    }
+//                },5000);
             }
         }
 
@@ -151,16 +177,16 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         }
                     },3000);
                 }else{
-                    speaker.speak(" Kindly tell me which "+exactFinalContactName+" ?",TextToSpeech.QUEUE_ADD,null);
-                    new Handler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            displaySpeechRecognizer(100);
-                        }
-                    },3000);
+                    speaker.speak(" Kindly tell me which "+exactFinalContactName+" ? ",TextToSpeech.QUEUE_ADD,null,"403");
+//                    new Handler().postDelayed(new Runnable() {
+//                        @Override
+//                        public void run() {
+//                            displaySpeechRecognizer(100);
+//                        }
+//                    },3000);
                 }
             } else{
-                speaker.speak(" Thank you !",TextToSpeech.QUEUE_ADD,null);
+                speaker.speak(" Thank you! ",TextToSpeech.QUEUE_ADD,null);
             }
         }
     }
@@ -172,32 +198,34 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     }
 
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void speakContacts(HashMap<String,String> h){
         int flag = 0;
         Iterator hmIterator = h.entrySet().iterator();
         while (hmIterator.hasNext()) {
             Map.Entry mapElement = (Map.Entry)hmIterator.next();
             if (flag == 0) {
-                speaker.speak("Do you want to call "+mapElement.getKey()+" ?",TextToSpeech.QUEUE_ADD,null);
+                speaker.speak(" Do you want to call "+mapElement.getKey()+" ? ",TextToSpeech.QUEUE_ADD,null);
                 flag = 1;
             } else {
-                speaker.speak("Or "+mapElement.getKey()+" ?",TextToSpeech.QUEUE_ADD,null);
+                speaker.speak(" Or "+mapElement.getKey()+" ?",TextToSpeech.QUEUE_ADD,null);
             }
         }
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-//                Toast.makeText(getApplicationContext(),"All possible options waala tts",Toast.LENGTH_SHORT).show();
-                displaySpeechRecognizer(2);
-            }
-        },9000);
+        speaker.speak("",TextToSpeech.QUEUE_ADD,null,"404");
+//        new Handler().postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+////                Toast.makeText(getApplicationContext(),"All possible options waala tts",Toast.LENGTH_SHORT).show();
+//                displaySpeechRecognizer(2);
+//            }
+//        },9000);
     }
 
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
     public void call() {
-        Log.d("TAG"," Call called");
+//        Log.d("TAG"," Call called");
         if (contactName.startsWith("9")||contactName.startsWith("7")||contactName.startsWith("8")) {
             callIntent = new Intent(Intent.ACTION_CALL);
             callIntent.setData(Uri.parse("tel:" + contactName));
@@ -210,8 +238,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
             }
         } else {
             Uri uri = ContactsContract.CommonDataKinds.Contactables.CONTENT_URI;
-            String[] projection = new String[]{ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                    ContactsContract.CommonDataKinds.Phone.NUMBER};
+            String[] projection = new String[]{ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER};
 //            contactName = toFirstLetterCapital(contactName);
             String selection = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " like '%" + contactName + "%'";
             Toast.makeText(getApplicationContext()," Contact Name is "+contactName,Toast.LENGTH_LONG).show();
@@ -235,9 +262,6 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                                     contactNumber+=elem;
                                 }
                             }
-//                        if(people!=null) {
-//                            Log.d("TAG",i+" "+"Contact "+name+" "+number+" "+name.substring(0,contactName.length()).equalsIgnoreCase(contactName));
-//                        }
                             if(!contactsWithTheName.containsKey(name)) {
                                 contactsWithTheName.put(name, contactNumber);
                             }
@@ -267,32 +291,32 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
             Log.d("TAG","Details -> "+mapElement.getKey() + " : " + mapElement.getValue());
         }
         if(hm.size()>1){
-            speaker.speak("Which "+contactName+" ?",TextToSpeech.QUEUE_ADD,null);
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    speakContacts(hm);
-                }
-            },2000);
+            speaker.speak(" Which " + contactName + " ? ",TextToSpeech.QUEUE_FLUSH,null,"402");
+//            new Handler().postDelayed(new Runnable() {
+//                @Override
+//                public void run() {
+//                    speakContacts(hm);
+//                }
+//            },2000);
         }else if(hm.size()==1){
             hmIterator = hm.entrySet().iterator();
             exactFinalContactName = (String) ((Map.Entry)hmIterator.next()).getKey();
-            speaker.speak(" Are you sure, you want to call " + exactFinalContactName + " ?",TextToSpeech.QUEUE_ADD,null);
-            Log.d("TAG"," 1 contact name only ");
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    displaySpeechRecognizer(100);
-                }
-            },4000);
+            speaker.speak(" Are you sure, you want to call " + exactFinalContactName + " ? ",TextToSpeech.QUEUE_FLUSH,null,"403");
+//            Log.d("TAG"," 1 contact name only ");
+//            new Handler().postDelayed(new Runnable() {
+//                @Override
+//                public void run() {
+//                    displaySpeechRecognizer(100);
+//                }
+//            },4000);
         }else{
-            speaker.speak(" Kindly try again with correct first name ? ",TextToSpeech.QUEUE_ADD,null);
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    displaySpeechRecognizer(1);
-                }
-            },7000);
+            speaker.speak(" Kindly try again with a correct name from your contacts ! ",TextToSpeech.QUEUE_FLUSH,null,"401");
+//            new Handler().postDelayed(new Runnable() {
+//                @Override
+//                public void run() {
+//                    displaySpeechRecognizer(1);
+//                }
+//            },7000);
         }
     }
 

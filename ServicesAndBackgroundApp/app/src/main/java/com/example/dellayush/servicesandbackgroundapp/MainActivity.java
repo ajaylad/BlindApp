@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.provider.ContactsContract;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
@@ -25,7 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements TextToSpeech.OnInitListener{
 
     String finalMessage = "", contact = "";
     String contactName="", contactNumber="", name="", finalContactNumber ="", finalContactName ="";
@@ -38,21 +39,57 @@ public class MainActivity extends AppCompatActivity {
     TextToSpeech speaker;
     HashMap<String,String> contactsWithTheName;
 
+    @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         smsManager = smsManager.getDefault();
         contactsWithTheName = new HashMap<String,String>();
-        speaker = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
-        @Override
-        public void onInit(int status) {
-            if (status != TextToSpeech.ERROR) {
-                speaker.setLanguage(Locale.ENGLISH);
-                askForContactName();
+        speaker = new TextToSpeech(this,this);
+        speaker.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override
+            public void onStart(String utteranceId) {
             }
-        }
+
+            @Override
+            public void onError(String utteranceId) {
+            }
+
+            @Override
+            public void onDone(String utteranceId) {
+                switch (utteranceId){
+                    case "401":
+                        displaySpeechRecognizer(1);
+                        break;
+                    case "402":
+                        displaySpeechRecognizer(2);
+                        break;
+                    case "403":
+                        displaySpeechRecognizer(100);
+                        break;
+                    case "404":
+                        speakContacts(contactsWithTheName);
+                        break;
+                    case "405":
+                        displaySpeechRecognizer(10);
+                        break;
+                    case "406":
+                        displaySpeechRecognizer(200);
+                        break;
+                    default:
+                        break;
+                }
+            }
         });
+    }
+
+    @Override
+    public void onInit(int status) {
+        if (status != TextToSpeech.ERROR) {
+            speaker.setLanguage(Locale.ENGLISH);
+            askForContactName();
+        }
     }
 
     private void displaySpeechRecognizer(int code) {
@@ -62,6 +99,7 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, code);
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -87,13 +125,13 @@ public class MainActivity extends AppCompatActivity {
                         if(contactsWithTheName.containsKey(finalContactName)){
 //                            speaker.speak(" Hello " + contact, TextToSpeech.QUEUE_ADD, null);
 //                            pause(3000);
-                            speaker.speak(" Are you sure you want to send the message to " + finalContactName, TextToSpeech.QUEUE_ADD, null);
-                            pauseAndCallSTT(100,3000);
+                            speaker.speak(" Are you sure you want to send the message to " + finalContactName, TextToSpeech.QUEUE_ADD, null,"403");
+//                            pauseAndCallSTT(100,3000);
                         }else{
                             speaker.speak(" Sorry, but that was not  " + contact, TextToSpeech.QUEUE_ADD, null);
                             speaker.speak(" Try again ", TextToSpeech.QUEUE_ADD, null);
-                            pause(8000);
-                            speakContacts(contactsWithTheName);
+                            speaker.speak("", TextToSpeech.QUEUE_ADD, null,"404");
+//                            speakContacts(contactsWithTheName);
                         }
                     }
                 }catch (Exception e){
@@ -110,12 +148,12 @@ public class MainActivity extends AppCompatActivity {
                         if (results != null) {
                             resultMessage = results.get(0);
                         }
-                        if(resultMessage.equalsIgnoreCase("yes")||resultMessage.equalsIgnoreCase("yeah")|resultMessage.equalsIgnoreCase("okay")){
+                        if(resultMessage.equalsIgnoreCase("yes.")||resultMessage.equalsIgnoreCase("yes")||resultMessage.equalsIgnoreCase("yeah")|resultMessage.equalsIgnoreCase("okay")){
                             finalContactNumber = contactsWithTheName.get(finalContactName);
                             Toast.makeText(getApplicationContext()," Messaging Number: " + finalContactNumber,Toast.LENGTH_LONG).show();
                             askForTheMessage();
                         }else{
-                            speaker.speak(" Ending the message thread for messaging" + contact, TextToSpeech.QUEUE_ADD, null);
+                            speaker.speak(" Ending the message thread " + contact, TextToSpeech.QUEUE_ADD, null);
                         }
                     }
                 }catch (Exception e){
@@ -132,11 +170,12 @@ public class MainActivity extends AppCompatActivity {
                             finalMessage = results.get(0);
                         }
                         speaker.speak(" Are you sure you want to send the message ", TextToSpeech.QUEUE_FLUSH, null);
-                        pause(50);
+//                        pause(50);
                         speaker.speak(finalMessage, TextToSpeech.QUEUE_ADD, null);
-                        pause(50);
-                        speaker.speak(" to " + finalContactName, TextToSpeech.QUEUE_ADD, null);
-                        pauseAndCallSTT(CONFIRMATION_FINAL_MESSAGE_TO_SEND,((finalMessage.split(" ")).length*1000)+5000);
+//                        pause(50);
+                        speaker.speak(" to " + finalContactName + "?", TextToSpeech.QUEUE_ADD, null);
+                        speaker.speak("", TextToSpeech.QUEUE_ADD, null,"406");
+//                        pauseAndCallSTT(CONFIRMATION_FINAL_MESSAGE_TO_SEND,((finalMessage.split(" ")).length*1000)+5000);
                     }
                 }catch (Exception e){
 
@@ -151,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
                         if (results != null) {
                             resultContact = results.get(0);
                         }
-                        if(resultContact.equalsIgnoreCase("yes")||resultContact.equalsIgnoreCase("yeah")|resultContact.equalsIgnoreCase("okay")){
+                        if(resultContact.equalsIgnoreCase("yes.")||resultContact.equalsIgnoreCase("yes")||resultContact.equalsIgnoreCase("yeah")|resultContact.equalsIgnoreCase("okay")){
                             sendSMS(finalContactNumber,finalMessage);
                         }else{
                             askForTheMessage();
@@ -161,9 +200,6 @@ public class MainActivity extends AppCompatActivity {
 
                 }
                 break;
-
-
-
             default:
                 throw new IllegalStateException("Unexpected value: " + requestCode);
         }
@@ -177,8 +213,8 @@ public class MainActivity extends AppCompatActivity {
                 finalContactNumber = personData;
                 askForTheMessage();
             }else{
-                speaker.speak( " Sorry, couldn't understand you! Try again. ",TextToSpeech.QUEUE_ADD,null);
-                pauseAndCallSTT(1,3000);
+                speaker.speak( " Sorry, couldn't understand you! Try again. ",TextToSpeech.QUEUE_ADD,null,"401");
+//                pauseAndCallSTT(1,3000);
             }
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this,
@@ -222,7 +258,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     printHashMap(contactsWithTheName);
                 }catch (Exception ex){
-                    speaker.speak("Kindly try again !",TextToSpeech.QUEUE_ADD,null);
+                    speaker.speak(" Kindly try again ! ",TextToSpeech.QUEUE_ADD,null);
                     Toast.makeText(this,"Sorry no such contact",Toast.LENGTH_SHORT);
                 }
             }else{
@@ -240,26 +276,27 @@ public class MainActivity extends AppCompatActivity {
             Log.d("TAG","Details -> "+mapElement.getKey() + " : " + mapElement.getValue());
         }
         if(hm.size()>1){
-            speaker.speak("Which " + contact + " ?",TextToSpeech.QUEUE_ADD,null);
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    speakContacts(hm);
-                }
-            },2000);
+            speaker.speak(" Which " + contact + " ?",TextToSpeech.QUEUE_ADD,null,"404");
+//            new Handler().postDelayed(new Runnable() {
+//                @Override
+//                public void run() {
+//                    speakContacts(hm);
+//                }
+//            },2000);
         }else if(hm.size()==1){
             Log.d("TAG"," 1 contact name only ");
             hmIterator = hm.entrySet().iterator();
             finalContactName = (String) ((Map.Entry)hmIterator.next()).getKey();
             Toast.makeText(this,finalContactName +"'s" + " number: " + contactsWithTheName.get(finalContactName),Toast.LENGTH_SHORT).show();
-            speaker.speak(" Are you sure, you want to message " + finalContactName + " ?",TextToSpeech.QUEUE_ADD,null);
-            pauseAndCallSTT(FINAL_CONFIRMATION_OF_CONTACT_NAME,4000);
+            speaker.speak(" Are you sure, you want to message " + finalContactName + " ?",TextToSpeech.QUEUE_ADD,null,"403");
+//            pauseAndCallSTT(FINAL_CONFIRMATION_OF_CONTACT_NAME,4000);
         }else{
             speaker.speak(" Kindly try again with correct first name ! ",TextToSpeech.QUEUE_ADD,null);
             askForContactName();
         }
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void speakContacts(HashMap<String,String> h){
         int flag = 0;
         Iterator hmIterator = h.entrySet().iterator();
@@ -272,7 +309,8 @@ public class MainActivity extends AppCompatActivity {
                 speaker.speak("Or "+mapElement.getKey()+" ?",TextToSpeech.QUEUE_ADD,null);
             }
         }
-        pauseAndCallSTT(CONFIRM_PERSON_OPTIONS,((h.size())*1000)+3000);
+        speaker.speak("",TextToSpeech.QUEUE_ADD,null,"405");
+//        pauseAndCallSTT(CONFIRM_PERSON_OPTIONS,((h.size())*1000)+3000);
     }
 
     public String toFirstLetterCapital(String s){
@@ -310,14 +348,16 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this,"Message sent successfully!",Toast.LENGTH_SHORT).show();
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void askForContactName(){
-        speaker.speak(" Whom do you want to send the Message? ",TextToSpeech.QUEUE_ADD,null);
-        pauseAndCallSTT(1,4000);
+        speaker.speak(" Whom do you want to send the Message? ",TextToSpeech.QUEUE_ADD,null,"401");
+//        pauseAndCallSTT(1,4000);
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void askForTheMessage(){
-        speaker.speak(" What is the message ? ",TextToSpeech.QUEUE_FLUSH,null);
-        pauseAndCallSTT(MESSAGE_CONTENT,3000);
+        speaker.speak(" What is the message ? ",TextToSpeech.QUEUE_FLUSH,null,"402");
+//        pauseAndCallSTT(MESSAGE_CONTENT,3000);
     }
 
     public void pause(long duration){
