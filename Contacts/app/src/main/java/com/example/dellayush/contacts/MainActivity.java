@@ -17,6 +17,14 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -30,16 +38,53 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     private static final int CONFIRM_PHONE_CALL_TO_PERSON = 2;
     private static final int CONFIRMATION = 100;
     private static final int TTS_INSTALL_CODE = 1000;
+    private static final int USER = 10001;
+    private static final int BOT = 10002;
+
+    private LinearLayout chatLayout;
+    private EditText queryEditText;
+
     private TextToSpeech speaker;
-    String contactNumber="", name="", contactName="", exactFinalContactName="";
+    String contactNumber="", name="", contactName="", exactFinalContactName="", displayContactNameForBot="";
     HashMap<String, String> contactsWithTheName;
     Intent callIntent;
+    ImageView sendBtn;
 
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        chatLayout = findViewById(R.id.chatLayout);
+        sendBtn = findViewById(R.id.sendBtn);
+        sendBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                String msg = queryEditText.getText().toString();
+                if (msg.trim().isEmpty()) {
+                    Toast.makeText(MainActivity.this, "Please enter your query!", Toast.LENGTH_LONG).show();
+                } else {
+                    showTextView(msg, USER);
+                    queryEditText.setText("");
+                }
+            }
+        });
+
+        queryEditText = findViewById(R.id.queryEditText);
+        queryEditText.setOnKeyListener((view, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                switch (keyCode) {
+                    case KeyEvent.KEYCODE_DPAD_CENTER:
+                    case KeyEvent.KEYCODE_ENTER:
+                        sendMessage(sendBtn);
+                        return true;
+                    default:
+                        break;
+                }
+            }
+            return false;
+        });
+
         speaker = new TextToSpeech(this,this);
         speaker.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override
@@ -72,19 +117,23 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         });
     }
 
+    private void sendMessage(View view) {
+        String msg = queryEditText.getText().toString();
+        if (msg.trim().isEmpty()) {
+            Toast.makeText(MainActivity.this, "Please enter your query!", Toast.LENGTH_LONG).show();
+        } else {
+            showTextView(msg, USER);
+            queryEditText.setText("");
+        }
+    }
+
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
             speaker.setLanguage(Locale.UK);
+            showTextView("Say call and a person name to connect to the person.",BOT);
             speaker.speak(" Say call and a person name to connect to the person. ",TextToSpeech.QUEUE_FLUSH,null,"401");
-//            new Handler().postDelayed(new Runnable() {
-//                @Override
-//                public void run() {
-//                    displaySpeechRecognizer(1);
-//                }
-//            },5000);
-            //displaySpeechRecognizer(1);
             contactsWithTheName = new HashMap<>();
         } else if (status == TextToSpeech.ERROR) {
             Toast.makeText(this, "Text To Speech Not Activated", Toast.LENGTH_LONG).show();
@@ -95,11 +144,9 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-
         if (requestCode == TTS_INSTALL_CODE) {
             if (resultCode == TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
                 speaker = new TextToSpeech(this, this);
-
             } else {
                 Intent installTTSIntent = new Intent();
                 installTTSIntent.setAction(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
@@ -110,66 +157,56 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         if (requestCode == CALL_CODE && resultCode == RESULT_OK) {
             List<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
             String spokenText = results.get(0);
+            spokenText = removeFullStop(spokenText);
+            showTextView(spokenText,USER);
             String choiceOfContact[] = spokenText.split(" ");
             if (choiceOfContact[0].equalsIgnoreCase("call")) {
                 for (int i = 1; i < choiceOfContact.length; i++) {
                     contactName += choiceOfContact[i] + " ";
                 }
                 contactName = toFirstLetterCapital(contactName);
+
                 Toast.makeText(getApplicationContext(), " " + contactName, Toast.LENGTH_LONG).show();
                 if (!contactName.equalsIgnoreCase("")) {
                     call();
                 } else {
-                    speaker.speak(" Try calling with the correct name ",TextToSpeech.QUEUE_ADD,null, "401");
-//                    new Handler().postDelayed(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            displaySpeechRecognizer(1);
-//                        }
-//                    },4000);
+                    showTextView("Try calling a person from your Contacts.",BOT);
+                    speaker.speak(" Try calling a person from your Contacts. ",TextToSpeech.QUEUE_ADD,null, "401");
                 }
+            }else{
+                showTextView("Sorry, couldn't recognise your request. " + "\n" + " Try Again.",BOT);
+                speaker.speak("Couldn't Recognise what you want!",TextToSpeech.QUEUE_FLUSH,null,"401");
             }
-//            else if((choiceOfContact.length==1)&&(choiceOfContact[0].equalsIgnoreCase("call"))){
-//                speaker.speak(" Try calling with the name ",TextToSpeech.QUEUE_ADD,null);
-//            }
-
         }
 
         if (requestCode == CONFIRM_PHONE_CALL_TO_PERSON && resultCode == RESULT_OK) {
             List<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
             String spokenText = results.get(0);
+            showTextView(spokenText,USER);
             exactFinalContactName = toFirstLetterCapital(spokenText);
             if(contactsWithTheName.containsKey(exactFinalContactName)){
+                showTextView(" Are you sure, you want to call " + exactFinalContactName + " ? ",BOT);
                 speaker.speak(" Are you sure, you want to call " + exactFinalContactName + " ? ",TextToSpeech.QUEUE_ADD,null,"403");
-//                new Handler().postDelayed(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        displaySpeechRecognizer(100);
-//                    }
-//                },4000);
             }else{
+                showTextView(" Sorry, but that wasn't " + contactName + " !"+"\n"+" Try Again!",BOT);
                 speaker.speak(" Sorry, but that wasn't " + contactName + " !",TextToSpeech.QUEUE_ADD,null);
                 speaker.speak(" Try again ! ",TextToSpeech.QUEUE_ADD,null,"402");
-//                new Handler().postDelayed(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        speakContacts(contactsWithTheName);
-//                    }
-//                },5000);
             }
         }
 
         if (requestCode == CONFIRMATION && resultCode == RESULT_OK) {
             List<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
             String spokenText = results.get(0);
-            if(spokenText.equalsIgnoreCase("Yes")||spokenText.equalsIgnoreCase("okay")||spokenText.equalsIgnoreCase("Yeah")){
+            showTextView(spokenText,USER);
+            if(spokenText.equalsIgnoreCase("yes.")||spokenText.equalsIgnoreCase("yes")||spokenText.equalsIgnoreCase("okay")||spokenText.equalsIgnoreCase("Yeah")){
                 callIntent = new Intent(Intent.ACTION_CALL);
                 callIntent.setData(Uri.parse("tel:" + contactsWithTheName.get(toFirstLetterCapital(exactFinalContactName))));
                 if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
                     return;
                 }
                 if(contactsWithTheName.get(toFirstLetterCapital(exactFinalContactName))!=null){
-                    speaker.speak("Calling "+exactFinalContactName,TextToSpeech.QUEUE_ADD,null);
+                    showTextView("Calling "+exactFinalContactName,BOT);
+                    speaker.speak("Calling " + exactFinalContactName + " ...",TextToSpeech.QUEUE_ADD,null);
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
@@ -177,18 +214,15 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         }
                     },3000);
                 }else{
+                    showTextView(" Kindly tell me which "+exactFinalContactName+" ? ",BOT);
                     speaker.speak(" Kindly tell me which "+exactFinalContactName+" ? ",TextToSpeech.QUEUE_ADD,null,"403");
-//                    new Handler().postDelayed(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            displaySpeechRecognizer(100);
-//                        }
-//                    },3000);
                 }
             } else{
-                speaker.speak(" Thank you! ",TextToSpeech.QUEUE_ADD,null);
+                showTextView("Ending your Call Request!",BOT);
+                speaker.speak("Ending your Call Request!",TextToSpeech.QUEUE_ADD,null);
             }
         }
+
     }
 
     private void displaySpeechRecognizer(int code) {
@@ -202,6 +236,9 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     public void speakContacts(HashMap<String,String> h){
         int flag = 0;
         Iterator hmIterator = h.entrySet().iterator();
+//        Toast.makeText(this,displayContactNameForBot,Toast.LENGTH_SHORT).show();
+//        showTextView(" Do you want to call "+displayContactNameForBot+"?",BOT);
+//        Log.d("TAG",displayContactNameForBot+" in Speak Contacts");
         while (hmIterator.hasNext()) {
             Map.Entry mapElement = (Map.Entry)hmIterator.next();
             if (flag == 0) {
@@ -212,29 +249,30 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
             }
         }
         speaker.speak("",TextToSpeech.QUEUE_ADD,null,"404");
-//        new Handler().postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-////                Toast.makeText(getApplicationContext(),"All possible options waala tts",Toast.LENGTH_SHORT).show();
-//                displaySpeechRecognizer(2);
-//            }
-//        },9000);
     }
 
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
     public void call() {
-//        Log.d("TAG"," Call called");
-        if (contactName.startsWith("9")||contactName.startsWith("7")||contactName.startsWith("8")) {
-            callIntent = new Intent(Intent.ACTION_CALL);
-            callIntent.setData(Uri.parse("tel:" + contactName));
-            startActivity(callIntent);
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.CALL_PHONE},   //request specific permission from user
-                        10);
-                return;
+        if(contactName.matches("[0-9]+")){
+            if(isValidPhoneNumber(contactName)){
+                if (contactName.startsWith("9")||contactName.startsWith("7")||contactName.startsWith("8")) {
+                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+                        ActivityCompat.requestPermissions(this,
+                                new String[]{Manifest.permission.CALL_PHONE},   //request specific permission from user
+                                10);
+                        return;
+                    }
+                    showTextView("Calling " + contactName + "...",BOT);
+                    callIntent = new Intent(Intent.ACTION_CALL);
+                    callIntent.setData(Uri.parse("tel:" + contactName));
+                    startActivity(callIntent);
+                }
+            }else{
+                contactName = "";
+                showTextView("Not a valid phone number."+"\n"+"Try Again.",BOT);
+                speaker.speak("Not a valid phone number. Try again",TextToSpeech.QUEUE_FLUSH,null,"401");
             }
         } else {
             Uri uri = ContactsContract.CommonDataKinds.Contactables.CONTENT_URI;
@@ -273,13 +311,32 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     }
                     printHashMap(contactsWithTheName);
                 }catch (Exception ex){
-                    speaker.speak("Kindly try again !",TextToSpeech.QUEUE_ADD,null);
+                    showTextView("Kindly try calling again",BOT);
+                    speaker.speak("Kindly try again!",TextToSpeech.QUEUE_ADD,null,"401");
                     Toast.makeText(this,"Sorry no such contact",Toast.LENGTH_SHORT);
                 }
             }else{
+                showTextView("Sorry, no such contact found.",BOT);
                 speaker.speak(" Sorry, no such contact found ! ",TextToSpeech.QUEUE_ADD,null);
             }
         }
+    }
+
+    public boolean isValidPhoneNumber(String s){
+        int flag = 1;
+        for(int i=0;i<s.length();i++){
+            if(!Character.isDigit(s.charAt(i))){
+                return false;
+            }
+        }
+        return (flag==1) && (s.length()==10);
+    }
+
+    public String removeFullStop(String s){
+        if(s.contains(".")){
+            s = s.substring(0,s.indexOf("."));
+        }
+        return s;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
@@ -289,34 +346,22 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         while (hmIterator.hasNext()) {
             Map.Entry mapElement = (Map.Entry)hmIterator.next();
             Log.d("TAG","Details -> "+mapElement.getKey() + " : " + mapElement.getValue());
+            displayContactNameForBot +=  mapElement.getKey() + ", ";
         }
+        displayContactNameForBot = displayContactNameForBot.substring(0,displayContactNameForBot.length()-2);
+        Log.d("TAG",displayContactNameForBot);
         if(hm.size()>1){
+            showTextView(" Which " + contactName + " ? ",BOT);
+            showTextView("Do you want to call " + displayContactNameForBot + " ?",BOT);
             speaker.speak(" Which " + contactName + " ? ",TextToSpeech.QUEUE_FLUSH,null,"402");
-//            new Handler().postDelayed(new Runnable() {
-//                @Override
-//                public void run() {
-//                    speakContacts(hm);
-//                }
-//            },2000);
         }else if(hm.size()==1){
             hmIterator = hm.entrySet().iterator();
             exactFinalContactName = (String) ((Map.Entry)hmIterator.next()).getKey();
+            showTextView(" Are you sure, you want to call " + exactFinalContactName + " ? ",BOT);
             speaker.speak(" Are you sure, you want to call " + exactFinalContactName + " ? ",TextToSpeech.QUEUE_FLUSH,null,"403");
-//            Log.d("TAG"," 1 contact name only ");
-//            new Handler().postDelayed(new Runnable() {
-//                @Override
-//                public void run() {
-//                    displaySpeechRecognizer(100);
-//                }
-//            },4000);
         }else{
-            speaker.speak(" Kindly try again with a correct name from your contacts ! ",TextToSpeech.QUEUE_FLUSH,null,"401");
-//            new Handler().postDelayed(new Runnable() {
-//                @Override
-//                public void run() {
-//                    displaySpeechRecognizer(1);
-//                }
-//            },7000);
+            showTextView("Kindly try again with a correct name from your contacts!",BOT);
+            speaker.speak(" Kindly try again with a correct name from your contacts !",TextToSpeech.QUEUE_FLUSH,null,"401");
         }
     }
 
@@ -346,6 +391,37 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
             return true;
         }
         return false;
+    }
+
+    private void showTextView(String message, int type) {
+        FrameLayout layout;
+        switch (type) {
+            case USER:
+                layout = getUserLayout();
+                break;
+            case BOT:
+                layout = getBotLayout();
+                break;
+            default:
+                layout = getBotLayout();
+                break;
+        }
+        layout.setFocusableInTouchMode(true);
+        chatLayout.addView(layout); // move focus to text view to automatically make it scroll up if softfocus
+        TextView tv = layout.findViewById(R.id.chatMsg);
+        tv.setText(message);
+        layout.requestFocus();
+        queryEditText.requestFocus(); // change focus back to edit text to continue typing
+    }
+
+    FrameLayout getUserLayout() {
+        LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
+        return (FrameLayout) inflater.inflate(R.layout.user_msg_layout, null);
+    }
+
+    FrameLayout getBotLayout() {
+        LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
+        return (FrameLayout) inflater.inflate(R.layout.bot_msg_layout, null);
     }
 
     @Override
